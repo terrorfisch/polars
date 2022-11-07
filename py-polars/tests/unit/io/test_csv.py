@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import io
 import os
+import tempfile
 import textwrap
 import zlib
 from datetime import date, datetime, time
@@ -930,3 +931,32 @@ def test_csv_single_categorical_null() -> None:
 
     assert df.dtypes == [pl.Utf8, pl.Categorical, pl.Utf8]
     assert df.to_dict(False) == {"x": ["A"], "y": [None], "z": ["A"]}
+
+
+def assert_csv_round_trip(f):
+    df = pl.DataFrame(
+        {
+            "x": ["A", "B"],
+            "y": [1.1, 2.2],
+            "z": ["Ä", "Ö"],
+        }
+    )
+    df.write_csv(f)
+    f.seek(0)
+    loaded = pl.read_csv(f)
+    assert_frame_equal(df, loaded)
+
+
+def test_csv_write_unicode_file() -> None:
+    with tempfile.TemporaryFile(mode="w") as f:
+        assert_csv_round_trip(f)
+
+
+def test_csv_write_binary_file() -> None:
+    with tempfile.TemporaryFile(mode="wb") as f:
+        assert_csv_round_trip(f)
+
+
+def test_csv_write_stringio() -> None:
+    f = io.StringIO()
+    assert_csv_round_trip(f)
